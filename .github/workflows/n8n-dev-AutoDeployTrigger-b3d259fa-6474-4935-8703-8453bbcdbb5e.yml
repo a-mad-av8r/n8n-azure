@@ -1,0 +1,49 @@
+name: Trigger auto deployment for n8n-dev
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ a-mad-av8r-n8n-dev ]
+    paths:
+    - '**'
+    - '.github/workflows/n8n-dev-AutoDeployTrigger-b3d259fa-6474-4935-8703-8453bbcdbb5e.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.N8NDEV_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.N8NDEV_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.N8NDEV_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}n8n_data:/home/node/.n8n
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: docker.io
+          registryUsername: ${{ secrets.N8NDEV_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.N8NDEV_REGISTRY_PASSWORD }}
+          containerAppName: n8n-dev
+          resourceGroup: AI-dev-tes
+          imageToBuild: amadmalik/n8n-dev:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
